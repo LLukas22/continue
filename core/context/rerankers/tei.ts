@@ -6,13 +6,15 @@ export class HuggingFaceTEIReranker implements Reranker {
 
   static defaultOptions = {
     apiBase: "http://localhost:8080",
-    model: "tei",
+    truncate: true,
+    truncation_direction: "Right"
   };
 
   constructor(
     private readonly params: {
       apiBase?: string;
-      model?: string;
+      truncate?: boolean;
+      truncation_direction?: string;
     },
   ) {}
 
@@ -24,11 +26,14 @@ export class HuggingFaceTEIReranker implements Reranker {
 
     const resp = await fetch(new URL("rerank", apiBase), {
       method: "POST",
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: query,
         return_text: false,
         raw_scores: false,
         texts: chunks.map((chunk) => chunk.content),
+        truncation_direction: this.params.truncation_direction ?? HuggingFaceTEIReranker.defaultOptions.truncation_direction,
+        truncate: this.params.truncate ?? HuggingFaceTEIReranker.defaultOptions.truncate
       }),
     });
 
@@ -37,7 +42,8 @@ export class HuggingFaceTEIReranker implements Reranker {
     }
 
     const data = (await resp.json()) as any;
-    const results = data.results.sort((a: any, b: any) => a.index - b.index);
+    // Resort into original order and extract scores
+    const results = data.sort((a: any, b: any) => a.index - b.index);
     return results.map((result: any) => result.score);
   }
 }
